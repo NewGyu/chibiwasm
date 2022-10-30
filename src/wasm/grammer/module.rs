@@ -1,4 +1,4 @@
-use crate::{
+use super::{
     section::{Export, FunctionBody, Section},
     types::FuncType,
 };

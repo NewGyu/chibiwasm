@@ -1,12 +1,17 @@
-use crate::instruction::{self, Instruction};
-use crate::section::{Export, ExportDesc, FunctionBody, Section};
-use crate::types::{FuncType, ValueType};
-use crate::value::{Function, Value};
-use crate::Module;
+mod decoder;
+
+use super::grammer::{
+    instruction::Instruction,
+    module::Module,
+    section::ExportDesc,
+    types::FuncType,
+    value::{Function, Value},
+};
 use anyhow::{bail, Context, Result};
+pub use decoder::Decoder;
 use std::collections::HashMap;
-use std::fmt::Display;
-use std::ops::{Deref, Shl, Shr};
+
+use std::ops::{Shl, Shr};
 
 #[macro_export]
 macro_rules! binop {
@@ -363,14 +368,9 @@ fn new_functions(module: &mut Module) -> Result<Vec<Function>> {
 
 #[cfg(test)]
 mod test {
-    use super::{Runtime, Value};
-    use crate::Decoder;
-    use anyhow::{Context, Result};
-    use std::{
-        fs,
-        io::{self, BufReader, Cursor},
-        ops::Shl,
-    };
+    use super::{decoder::Decoder, Runtime, Value};
+    use anyhow::Result;
+    use std::io::Cursor;
     use wasmer::wat2wasm;
 
     #[test]

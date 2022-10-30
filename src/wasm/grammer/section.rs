@@ -1,11 +1,10 @@
-use crate::instruction::{Instruction, Opcode};
-use crate::types::{FuncType, ValueType};
+use super::instruction::{Instruction, Opcode};
+use super::types::{FuncType, ValueType};
 use anyhow::{bail, Context, Result};
 use num_traits::FromPrimitive;
-use std::collections::HashMap;
-use std::fmt::{Display, LowerHex};
+
 use std::{
-    io::{BufRead, BufReader, Cursor, Read},
+    io::{BufRead, Cursor, Read},
     u8,
 };
 
