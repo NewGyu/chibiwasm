@@ -20,17 +20,26 @@ struct Args {
     func_args: Vec<i32>,
 }
 
+impl Args {
+    fn wasm_file(&self) -> io::Result<File> {
+        File::open(&self.file)
+    }
+    fn func_args(&self) -> Vec<Value> {
+        self.func_args.iter().map(|x| Value::from(*x)).collect()
+    }
+}
+
 fn main() -> Result<()> {
     let args = Args::parse();
-    let file = fs::File::open(args.file)?;
-    let mut decoder = Decoder::new(file);
+
+    //Load module with decoder
+    let mut decoder = Decoder::new(args.wasm_file()?);
     let mut module = decoder.decode()?;
+
+    //Execute with runtime
     let mut runtime = Runtime::new(&mut module)?;
-    let mut func_args = vec![];
-    for arg in args.func_args.into_iter() {
-        func_args.push(Value::from(arg));
-    }
-    let result = runtime.invoke(args.func, &mut func_args);
+    let result = runtime.invoke(&args.func, &mut args.func_args());
+
     println!("{}", result?.unwrap());
     Ok(())
 }
