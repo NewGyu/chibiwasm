@@ -1,5 +1,3 @@
-mod decoder;
-
 use super::grammer::{
     instruction::Instruction,
     module::Module,
@@ -8,7 +6,6 @@ use super::grammer::{
     value::{Function, Value},
 };
 use anyhow::{bail, Context, Result};
-pub use decoder::Decoder;
 use std::collections::HashMap;
 
 use std::ops::{Shl, Shr};
@@ -368,7 +365,8 @@ fn new_functions(module: &mut Module) -> Result<Vec<Function>> {
 
 #[cfg(test)]
 mod test {
-    use super::{decoder::Decoder, Runtime, Value};
+    use super::Runtime;
+    use crate::grammer::{module::Decoder, value::Value};
     use anyhow::Result;
     use std::io::Cursor;
     use wasmer::wat2wasm;

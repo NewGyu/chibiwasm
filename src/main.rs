@@ -4,8 +4,13 @@
 use anyhow::Result;
 use anyhow::{bail, Context};
 use chibiwasm::{
-    grammer::{module::Module, section::*, types::FuncType, value::Value},
-    runtime::{Decoder, Runtime},
+    grammer::{
+        module::{Decoder, Module},
+        section::*,
+        types::FuncType,
+        value::Value,
+    },
+    runtime::Runtime,
 };
 use clap::Parser;
 use std::fs::{self, File};

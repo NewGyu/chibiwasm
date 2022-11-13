@@ -1,7 +1,10 @@
+mod decoder;
+
 use super::{
     section::{Export, FunctionBody, Section},
     types::FuncType,
 };
+pub use decoder::Decoder;
 
 #[derive(Debug, Default)]
 pub struct Module {
