@@ -59,15 +59,15 @@ impl Runtime {
         })
     }
 
-    pub fn invoke(&mut self, func_name: String, args: &mut Vec<Value>) -> Result<Option<Value>> {
+    pub fn invoke(&mut self, func_name: &String, args: &mut Vec<Value>) -> Result<Option<Value>> {
         let func = self.resolve_func(func_name)?;
         let frame = Frame::new(func.body.clone(), args);
         self.frames.push(frame);
         self.execute()
     }
 
-    fn resolve_func(&mut self, func_name: String) -> Result<&Function> {
-        let desc = self.exports.get(&func_name).context("not found function")?;
+    fn resolve_func(&mut self, func_name: &String) -> Result<&Function> {
+        let desc = self.exports.get(func_name).context("not found function")?;
         let idx = match desc {
             ExportDesc::Func(i) => *i,
             _ => bail!("invalid export desc: {:?}", desc),
@@ -642,7 +642,7 @@ mod test {
 
         for mut test in tests.into_iter() {
             let args = test.1.into_iter().map(Value::from);
-            let result = runtime.invoke(test.0.into(), &mut args.into_iter().collect())?;
+            let result = runtime.invoke(&test.0.into(), &mut args.into_iter().collect())?;
             assert_eq!(result.unwrap(), Value::from(test.2), "func {}", test.0)
         }
 
