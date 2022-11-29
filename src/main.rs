@@ -38,8 +38,8 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     //Load module with decoder
-    let mut decoder = Decoder::new(args.wasm_file()?);
-    let mut module = decoder.decode()?;
+    let mut file = args.wasm_file()?;
+    let mut module = Module::decode(file)?;
 
     //Execute with runtime
     let mut runtime = Runtime::new(&mut module)?;

@@ -1,87 +1,107 @@
+use super::bin_read::WasmModuleBinaryRead;
+use super::Module;
 use anyhow::{bail, Result};
-use std::io::{self, BufRead, BufReader, Read};
+use std::io::{BufReader, Read};
 
-use crate::wasm::grammer::{
-    module::Module,
-    section::{Section, SectionID},
-};
+use crate::wasm::grammer::section::{Section, SectionID};
+
+const MAGIC_NUMBER: &[u8] = b"\0asm";
+
 pub struct Decoder<R> {
     reader: BufReader<R>,
 }
 
-impl<R: io::Read> Decoder<R> {
+impl<R: Read> Decoder<R> {
     pub fn new(reader: R) -> Self {
-        let reader = BufReader::new(reader);
-        Self { reader }
+        Self {
+            reader: BufReader::new(reader),
+        }
     }
 
-    fn is_end(&mut self) -> Result<bool> {
-        Ok(self.reader.fill_buf().map(|b| !b.is_empty())?)
-    }
-
-    fn byte(&mut self) -> Result<u8> {
-        let mut buf = [0u8; 1];
-        self.reader.read_exact(&mut buf)?;
-        Ok(buf[0])
-    }
-
-    fn bytes(&mut self, num: usize) -> Result<Vec<u8>> {
-        let mut buf = vec![0u8; num];
-        self.reader.read_exact(&mut buf)?;
-        Ok(buf)
-    }
-
-    fn decode_to_u32(&mut self) -> Result<u32> {
-        Ok(u32::from_le_bytes(self.bytes(4)?.as_slice().try_into()?))
-    }
-
-    fn decode_to_string(&mut self, num: usize) -> Result<String> {
-        let str = String::from_utf8_lossy(self.bytes(num)?.as_slice()).to_string();
-        Ok(str)
-    }
-
-    fn u32(&mut self) -> Result<u32> {
-        let num = leb128::read::unsigned(&mut self.reader)?;
-        let num = u32::try_from(num)?;
-        Ok(num)
-    }
-
-    pub fn decode_section_header(&mut self) -> Result<(SectionID, u32)> {
-        let id: SectionID = self.byte()?.into();
-        let size: u32 = self.u32()?;
-        Ok((id, size))
-    }
-
-    pub fn decode_header(&mut self) -> Result<(String, u32)> {
-        let magic = self.decode_to_string(4)?;
-        if magic != "\0asm" {
+    pub fn decode_header(&mut self) -> Result<Module> {
+        let magic = self.reader.read_bytes(4)?;
+        if magic.as_slice() != MAGIC_NUMBER {
             bail!("invalid binary magic")
         }
 
-        let version = self.decode_to_u32()?;
+        let version = self.reader.read_u32_le()?;
         if version != 1 {
             bail!("invalid binary version")
         }
-        Ok((magic, version))
-    }
-
-    pub fn decode(&mut self) -> Result<Module> {
-        let (magic, version) = self.decode_header()?;
-        let mut module = Module {
-            magic,
+        Ok(Module {
             version,
             ..Module::default()
-        };
-        while self.is_end()? {
-            let (id, size) = self.decode_section_header()?;
-            // TODO: decode custom section
-            if id == SectionID::Custom {
-                break;
-            }
-            let data = self.bytes(size as usize)?;
-            let section = Section::decode(id, data)?;
-            module.add_section(section);
+        })
+    }
+
+    pub fn decode_section(&mut self) -> Result<Option<Section>> {
+        if !self.reader.has_next()? {
+            return Ok(None);
         }
-        Ok(module)
+
+        let (id, size) = self.decode_section_type()?;
+        let bytes = self.reader.read_bytes(size as usize)?;
+        Ok(Some(Section::decode(id, bytes)?))
+    }
+
+    fn decode_section_type(&mut self) -> Result<(SectionID, u32)> {
+        let id: SectionID = self.reader.read_byte()?.into();
+        let size: u32 = self.reader.read_u64_leb()?.try_into()?;
+        Ok((id, size))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use std::io::Cursor;
+
+    use super::*;
+    use crate::wasm::grammer::section::SectionID;
+    use wasmer::wat2wasm;
+
+    #[test]
+    fn decode_header() {
+        //Given
+        let wat = br#"(module)"#;
+        let wasm = wat2wasm(wat).unwrap();
+        let reader = Cursor::new(wasm);
+        //When
+        let mut decoder = Decoder::new(reader);
+        //Then
+        let m = decoder.decode_header().unwrap();
+        assert_eq!(m.version, 1);
+    }
+
+    #[test]
+    fn decode_section_type() {
+        //Given
+        let wat = br#"(module
+            (func $i32.add (param $lhs i32) (param $rhs i32) (result i32)
+                local.get $lhs
+                local.get $rhs
+                i32.add
+            )
+        )"#;
+        let wasm = wat2wasm(wat).unwrap();
+        let reader = Cursor::new(wasm);
+        //When
+        let mut decoder = Decoder::new(reader);
+        let _ = decoder.decode_header().unwrap();
+        let (sec, size) = decoder.decode_section_type().unwrap();
+        //Then
+        assert_eq!((sec, size), (SectionID::Type, 7));
+
+        //When
+        let _ = decoder.reader.read_bytes(size as usize);
+        let (sec, size) = decoder.decode_section_type().unwrap();
+        //Then
+        assert_eq!((sec, size), (SectionID::Function, 2));
+
+        //When
+        let _ = decoder.reader.read_bytes(size as usize);
+        let (sec, size) = decoder.decode_section_type().unwrap();
+        //Then
+        assert_eq!((sec, size), (SectionID::Code, 9));
     }
 }

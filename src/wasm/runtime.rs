@@ -366,7 +366,7 @@ fn new_functions(module: &mut Module) -> Result<Vec<Function>> {
 #[cfg(test)]
 mod test {
     use super::Runtime;
-    use crate::grammer::{module::Decoder, value::Value};
+    use crate::grammer::{module::Module, value::Value};
     use anyhow::Result;
     use std::io::Cursor;
     use wasmer::wat2wasm;
@@ -544,8 +544,7 @@ mod test {
 "#;
         let wasm = wat2wasm(wat_code)?;
         let reader = Cursor::new(wasm);
-        let mut decoder = Decoder::new(reader);
-        let mut module = decoder.decode()?;
+        let mut module = Module::decode(reader)?;
         let mut runtime = Runtime::new(&mut module)?;
 
         let tests = [
