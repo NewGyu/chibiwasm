@@ -56,13 +56,29 @@ mod tests {
     }
 
     #[test]
-    fn test_u32() {
+    fn test_u32_le() {
         //Given
         let test_bytes = vec![0x01_u8, 0x02, 0x03, 0x04];
         let mut cur = Cursor::new(test_bytes);
         //When
         let x = cur.read_u32_le().unwrap();
         //Then
-        assert_eq!(x, 0x04030201_u32);
+        assert_eq!(x, 0x04_03_02_01_u32);
+    }
+
+    // 344865 => 0x54_32_1 => 0b101_0100_0011_0010_0001
+    // 7bit split =>    10101  0000110  0100001
+    // Add MSB =>    00010101 10000110 10100001
+    // HEX     =>    0x15     0x86     0xA1
+    // LE      =>    0xA1     0x86     0x15 
+    #[test]
+    fn test_u64_leb() {
+        //Given
+        let test_bytes = vec![0xA1_u8, 0x86, 0x15];
+        let mut cur = Cursor::new(test_bytes);
+        //When
+        let x = cur.read_u64_leb().unwrap();
+        //Then
+        assert_eq!(x, 344865);
     }
 }
