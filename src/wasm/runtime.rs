@@ -56,7 +56,7 @@ impl Runtime {
         })
     }
 
-    pub fn invoke(&mut self, func_name: &String, args: &mut Vec<Value>) -> Result<Option<Value>> {
+    pub fn invoke(&mut self, func_name: &String, args: &Vec<Value>) -> Result<Option<Value>> {
         let func = self.resolve_func(func_name)?;
         let frame = Frame::new(func.body.clone(), args);
         self.frames.push(frame);
@@ -309,9 +309,8 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn new(instructions: Vec<Instruction>, args: &mut Vec<Value>) -> Self {
-        let mut stack = vec![];
-        stack.append(args);
+    pub fn new(instructions: Vec<Instruction>, args: &Vec<Value>) -> Self {
+        let stack = args.clone();
         Self {
             local_stack: stack,
             pc: 0,
