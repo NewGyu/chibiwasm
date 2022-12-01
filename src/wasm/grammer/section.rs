@@ -81,6 +81,7 @@ pub enum Section {
     Function(Vec<u32>),
     Code(Vec<FunctionBody>),
     Export(Vec<Export>),
+    Custom,
 }
 
 pub struct ContentsReader {
@@ -131,7 +132,8 @@ impl Section {
             SectionID::Code => Section::decode_code_section(&mut reader)?,
             SectionID::Function => Section::decode_function_section(&mut reader)?,
             SectionID::Export => Section::decode_export_section(&mut reader)?,
-            _ => bail!("Unimplemented: {:x}", id as u8),
+            SectionID::Custom => Section::Custom,
+            _ => bail!("Unimplemented: {:?}", id),
         };
         Ok(section)
     }

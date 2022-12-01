@@ -636,13 +636,18 @@ mod test {
             ("fib", vec![6], 8),
             ("fib", vec![8], 21),
         ];
-
-        for mut test in tests.into_iter() {
-            let args = test.1.into_iter().map(Value::from);
-            let result = runtime.invoke(&test.0.into(), &mut args.into_iter().collect())?;
-            assert_eq!(result.unwrap(), Value::from(test.2), "func {}", test.0)
+        for test in tests.into_iter() {
+            let func_name: String = test.0.into();
+            let args = test.1.into_iter().map(Value::from).collect::<Vec<Value>>();
+            let result = runtime.invoke(&func_name, &args)?;
+            assert_eq!(
+                result.unwrap(),
+                Value::from(test.2),
+                "func {}: {:?}",
+                func_name,
+                args
+            );
         }
-
         Ok(())
     }
 }

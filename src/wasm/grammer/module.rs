@@ -35,6 +35,7 @@ impl Module {
             Section::Function(section) => self.function_section = Some(section),
             Section::Code(section) => self.code_section = Some(section),
             Section::Export(section) => self.export_section = Some(section),
+            _ => (),
         };
     }
 }
