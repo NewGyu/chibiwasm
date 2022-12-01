@@ -40,7 +40,9 @@ impl<R: Read> Decoder<R> {
         }
 
         let (id, size) = self.decode_section_type()?;
+        log::debug!("{:?}", (&id, size));
         let bytes = self.reader.read_bytes(size as usize)?;
+        log::debug!("{:?}", bytes);
         Ok(Some(Section::decode(id, bytes)?))
     }
 
@@ -59,6 +61,11 @@ mod tests {
     use super::*;
     use crate::wasm::grammer::section::SectionID;
     use wasmer::wat2wasm;
+
+    #[allow(dead_code)]
+    fn init() {
+        //        let _ = env_logger::builder().is_test(true).try_init();
+    }
 
     #[test]
     fn decode_header() {
@@ -103,5 +110,35 @@ mod tests {
         let (sec, size) = decoder.decode_section_type().unwrap();
         //Then
         assert_eq!((sec, size), (SectionID::Code, 9));
+    }
+
+    #[test]
+    fn decode_section() {
+        init();
+        //Given
+        let wat = br#"(module
+            (func $i32.add (param $lhs i32) (param $rhs i32) (result i32)
+                local.get $lhs
+                local.get $rhs
+                i32.add
+            )
+        )"#;
+        let wasm = wat2wasm(wat).unwrap();
+        let reader = Cursor::new(wasm);
+        let mut decoder = Decoder::new(reader);
+        let _ = decoder.decode_header().unwrap();
+
+        //When
+        let mut sections: Vec<Section> = vec![];
+        while let Some(s) = decoder.decode_section().unwrap() {
+            sections.push(s);
+        }
+
+        //Then
+        assert_eq!(sections.len(), 4);
+        assert!(matches!(sections[0], Section::Type(_)));
+        assert!(matches!(sections[1], Section::Function(_)));
+        assert!(matches!(sections[2], Section::Code(_)));
+        assert!(matches!(sections[3], Section::Custom));
     }
 }

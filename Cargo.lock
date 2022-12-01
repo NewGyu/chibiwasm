@@ -118,6 +118,7 @@ dependencies = [
  "anyhow",
  "clap",
  "leb128",
+ "log",
  "num-derive",
  "num-traits",
  "wasmer",
