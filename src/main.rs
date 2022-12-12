@@ -43,7 +43,7 @@ fn main() -> Result<()> {
 
     //Execute with runtime
     let mut runtime = Runtime::new(&mut module)?;
-    let result = runtime.invoke(&args.func, &mut args.func_args());
+    let result = runtime.invoke(&args.func, &args.func_args());
 
     println!("{}", result?.unwrap());
     Ok(())

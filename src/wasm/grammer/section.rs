@@ -50,8 +50,8 @@ impl From<u8> for SectionID {
 // https://webassembly.github.io/spec/core/binary/modules.html#binary-codesec
 #[derive(Debug, Clone)]
 pub struct FunctionLocal {
-    type_count: u32,
-    value_type: ValueType,
+    pub type_count: u32,
+    pub value_type: ValueType,
 }
 
 #[derive(Debug, Default, Clone)]

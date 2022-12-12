@@ -56,7 +56,7 @@ impl Runtime {
         })
     }
 
-    pub fn invoke(&mut self, func_name: &String, args: &Vec<Value>) -> Result<Option<Value>> {
+    pub fn invoke(&mut self, func_name: &String, args: &[Value]) -> Result<Option<Value>> {
         let func = self.resolve_func(func_name)?;
         let frame = Frame::new(func.body.clone(), args);
         self.frames.push(frame);
@@ -78,7 +78,7 @@ impl Runtime {
 
     fn execute(&mut self) -> Result<Option<Value>> {
         while let Some(inst) = self.instruction()? {
-            self.frame_pc_inc();
+            self.frame_pc_inc()?;
             match inst {
                 Instruction::LocalGet(idx) => {
                     let value = self
@@ -223,10 +223,10 @@ impl Runtime {
                         loop {
                             let ins = self.instruction()?.context("not found instruction")?;
                             if ins == Instruction::End || ins == Instruction::Else {
-                                self.frame_pc_inc();
+                                self.frame_pc_inc()?;
                                 break;
                             }
-                            self.frame_pc_inc();
+                            self.frame_pc_inc()?;
                         }
                     }
                 }
@@ -241,7 +241,7 @@ impl Runtime {
                     for _ in 0..func.func_type.params.len() {
                         args.push(self.stack_pop()?);
                     }
-                    let frame = Frame::new(body, &mut args);
+                    let frame = Frame::new(body, &args);
                     self.frames.push(frame);
                     let result = self.execute()?;
                     if let Some(value) = result {
@@ -309,8 +309,8 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn new(instructions: Vec<Instruction>, args: &Vec<Value>) -> Self {
-        let stack = args.clone();
+    pub fn new(instructions: Vec<Instruction>, args: &[Value]) -> Self {
+        let stack = args.to_owned();
         Self {
             local_stack: stack,
             pc: 0,
@@ -347,11 +347,11 @@ fn new_functions(module: &mut Module) -> Result<Vec<Function>> {
             results: t.results.clone(),
         };
 
-        let mut func_body = module
+        let func_body = module
             .code_section
             .as_ref()
             .context("not found code section")?;
-        let mut func_body = func_body.get(idx).context("not found function body")?;
+        let func_body = func_body.get(idx).context("not found function body")?;
 
         let func = Function {
             func_type,
