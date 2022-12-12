@@ -1,14 +1,15 @@
 use super::instruction::{Instruction, Opcode};
 use super::types::{FuncType, ValueType};
 use anyhow::{bail, Context, Result};
-use num_traits::FromPrimitive;
+use num::FromPrimitive;
+use num_derive::{FromPrimitive, ToPrimitive};
 
 use std::{
     io::{BufRead, Cursor, Read},
     u8,
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 pub enum SectionID {
     Custom,
     Type,
@@ -23,28 +24,6 @@ pub enum SectionID {
     Code,
     Data,
     DataCount,
-    Unknown,
-}
-
-impl From<u8> for SectionID {
-    fn from(id: u8) -> Self {
-        match id {
-            0x00 => SectionID::Custom,
-            0x01 => SectionID::Type,
-            0x02 => SectionID::Import,
-            0x03 => SectionID::Function,
-            0x04 => SectionID::Table,
-            0x05 => SectionID::Memory,
-            0x06 => SectionID::Global,
-            0x07 => SectionID::Export,
-            0x08 => SectionID::Start,
-            0x09 => SectionID::Element,
-            0x0a => SectionID::Code,
-            0x0b => SectionID::Data,
-            0x0c => SectionID::DataCount,
-            _ => SectionID::Unknown,
-        }
-    }
 }
 
 // https://webassembly.github.io/spec/core/binary/modules.html#binary-codesec
@@ -226,7 +205,7 @@ impl Section {
         while reader.is_end()? {
             let op = reader.byte()?;
 
-            let op: Opcode = FromPrimitive::from_u8(op).context("unsupported opcode")?;
+            let op = Opcode::from_u8(op).context("unsupported opcode")?;
 
             let inst = match op {
                 Opcode::Unreachable => Instruction::Unreachable,

@@ -1,6 +1,7 @@
 use super::bin_read::WasmModuleBinaryRead;
 use super::Module;
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
+use num::FromPrimitive;
 use std::io::{BufReader, Read};
 
 use crate::wasm::grammer::section::{Section, SectionID};
@@ -47,8 +48,8 @@ impl<R: Read> Decoder<R> {
     }
 
     fn decode_section_type(&mut self) -> Result<(SectionID, u32)> {
-        let id: SectionID = self.reader.read_byte()?.into();
-        let size: u32 = self.reader.read_u64_leb()?.try_into()?;
+        let id = SectionID::from_u8(self.reader.read_byte()?).context("unknown section id")?;
+        let size: u32 = self.reader.read_u64_leb()? as u32;
         Ok((id, size))
     }
 }
