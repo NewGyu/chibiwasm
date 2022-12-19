@@ -1,6 +1,15 @@
-use anyhow::*;
+use anyhow::Result;
 use std::io::{BufRead, Read};
 
+///
+pub trait Decoder
+where
+    Self: Sized,
+{
+    fn decode<R: Read + WasmModuleBinaryRead>(reader: &mut R) -> Result<Self>;
+}
+
+/// Extensions for Read to help to parse wasm binary
 pub trait WasmModuleBinaryRead: Read + BufRead {
     fn read_byte(&mut self) -> Result<u8> {
         let mut buf = [0u8; 1];
@@ -70,7 +79,7 @@ mod tests {
     // 7bit split =>    10101  0000110  0100001
     // Add MSB =>    00010101 10000110 10100001
     // HEX     =>    0x15     0x86     0xA1
-    // LE      =>    0xA1     0x86     0x15 
+    // LE      =>    0xA1     0x86     0x15
     #[test]
     fn test_u64_leb() {
         //Given

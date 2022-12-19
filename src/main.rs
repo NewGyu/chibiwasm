@@ -3,13 +3,9 @@
 
 use anyhow::Result;
 use anyhow::{bail, Context};
+use chibiwasm::decoder::Decoder;
 use chibiwasm::{
-    grammer::{
-        module::{Decoder, Module},
-        section::*,
-        types::FuncType,
-        value::Value,
-    },
+    grammer::{module::Module, section::*, types::FuncType, value::Value},
     runtime::Runtime,
 };
 use clap::Parser;
@@ -39,7 +35,8 @@ fn main() -> Result<()> {
 
     //Load module with decoder
     let mut file = args.wasm_file()?;
-    let mut module = Module::decode(file)?;
+    let mut reader = BufReader::new(file);
+    let mut module = Module::decode(&mut reader)?;
 
     //Execute with runtime
     let mut runtime = Runtime::new(&mut module)?;
