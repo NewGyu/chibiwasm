@@ -1,4 +1,3 @@
-pub mod decoder;
-pub mod grammer;
-pub mod runtime;
-pub mod section;
+pub mod binary;
+pub mod structure;
+//pub mod runtime;

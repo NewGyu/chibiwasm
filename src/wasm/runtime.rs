@@ -1,6 +1,7 @@
+use crate::module::Module;
+
 use super::grammer::{
     instruction::Instruction,
-    module::Module,
     section::ExportDesc,
     types::FuncType,
     value::{Function, Value},
@@ -364,9 +365,8 @@ fn new_functions(module: &mut Module) -> Result<Vec<Function>> {
 
 #[cfg(test)]
 mod test {
-    use super::super::decoder::Decoder;
+
     use super::Runtime;
-    use crate::grammer::{module::Module, value::Value};
     use anyhow::Result;
     use std::io::Cursor;
     use wasmer::wat2wasm;

@@ -1,14 +1,6 @@
 use anyhow::Result;
 use std::io::{BufRead, Cursor, Read};
 
-///
-pub trait Decoder
-where
-    Self: Sized,
-{
-    fn decode<R: Read + WasmModuleBinaryRead>(reader: &mut R) -> Result<Self>;
-}
-
 /// Extensions for Read to help to parse wasm binary
 pub trait WasmModuleBinaryRead: Read + BufRead {
     fn read_byte(&mut self) -> Result<u8> {
@@ -48,16 +40,27 @@ pub trait WasmModuleBinaryRead: Read + BufRead {
         self.read_i64().map(|x| x as i32)
     }
 }
-
-pub trait ReadableBytes {
-    fn to_wasm_read(&self) -> Box<dyn WasmModuleBinaryRead + '_>;
-}
-
 impl<R: Read + BufRead> WasmModuleBinaryRead for R {}
 
+pub trait ReadableBytes {
+    fn to_wasm_read(self) -> Box<dyn WasmModuleBinaryRead>;
+}
+
 impl ReadableBytes for Vec<u8> {
-    fn to_wasm_read(&self) -> Box<dyn WasmModuleBinaryRead + '_> {
+    fn to_wasm_read(self) -> Box<dyn WasmModuleBinaryRead> {
         Box::new(Cursor::new(self))
+    }
+}
+
+#[cfg(test)]
+pub mod test_util {
+
+    use super::WasmModuleBinaryRead;
+    use std::io::Cursor;
+
+    pub fn wasm_reader(bytes: &[u8]) -> impl WasmModuleBinaryRead + '_ {
+        let wasm = wasmer::wat2wasm(bytes).unwrap();
+        Cursor::new(wasm)
     }
 }
 
@@ -65,9 +68,7 @@ impl ReadableBytes for Vec<u8> {
 mod tests {
     use std::io::Cursor;
 
-    use crate::decoder::ReadableBytes;
-
-    use super::WasmModuleBinaryRead;
+    use super::{ReadableBytes, WasmModuleBinaryRead};
 
     #[test]
     fn test_read() {
