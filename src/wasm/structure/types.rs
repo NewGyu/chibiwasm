@@ -21,7 +21,9 @@ pub enum ValType {
 }
 
 /// https://webassembly.github.io/spec/core/syntax/types.html#result-types
+#[derive(PartialEq, Eq, Debug)]
 pub struct ResultType(pub Vec<ValType>);
 
 /// https://webassembly.github.io/spec/core/syntax/types.html#function-types
+#[derive(PartialEq, Eq, Debug)]
 pub struct FuncType(pub ResultType, pub ResultType);

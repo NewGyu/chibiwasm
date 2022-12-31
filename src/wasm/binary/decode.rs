@@ -62,6 +62,12 @@ pub mod test_util {
         let wasm = wasmer::wat2wasm(bytes).unwrap();
         Cursor::new(wasm)
     }
+
+    pub fn unsigned_leb128(n: u64) -> Vec<u8> {
+        let mut buff = Vec::<u8>::new();
+        let _ = leb128::write::unsigned(&mut buff, n);
+        buff
+    }
 }
 
 #[cfg(test)]

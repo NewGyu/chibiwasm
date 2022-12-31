@@ -31,3 +31,33 @@ fn decode_result_type(reader: &mut impl WasmModuleBinaryRead) -> Result<ResultTy
     let bytes = reader.read_bytes(len)?;
     ResultType::try_from(bytes)
 }
+
+#[cfg(test)]
+mod tests {
+    use anyhow::*;
+
+    use crate::structure::types::{FuncType, NumType, ResultType, ValType};
+
+    #[test]
+    fn test() -> Result<()> {
+        //given
+        // See: https://qiita.com/kgtkr/items/f4b3e2d83c7067f3cfcb#%E3%83%90%E3%82%A4%E3%83%8A%E3%83%AA%E3%82%92%E8%AA%AD%E3%82%93%E3%81%A7%E3%81%BF%E3%82%88%E3%81%86
+        let bytes = vec![0x01u8, 0x60, 0x02, 0x7f, 0x7C, 0x01, 0x7b];
+        //when
+        let content = super::decode(bytes)?;
+        //then
+        assert_eq!(content.len(), 1);
+        assert_eq!(
+            content[0],
+            FuncType(
+                ResultType(vec![
+                    ValType::Number(NumType::I32),
+                    ValType::Number(NumType::F64)
+                ]),
+                ResultType(vec![ValType::Vec])
+            )
+        );
+
+        Ok(())
+    }
+}
