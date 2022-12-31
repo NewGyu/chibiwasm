@@ -34,7 +34,7 @@ mod test {
     use crate::structure::types::{NumType, RefType, ResultType, ValType};
 
     #[test]
-    fn decode_result_type() -> Result<()> {
+    fn decode_resulttype() -> Result<()> {
         //given
         let bytes = vec![0x7Fu8, 0x7B, 0x6F];
         //when
@@ -44,6 +44,17 @@ mod test {
         assert_eq!(x[0], ValType::Number(NumType::I32));
         assert_eq!(x[1], ValType::Vec);
         assert_eq!(x[2], ValType::Ref(RefType::ExternRef));
+        Ok(())
+    }
+
+    #[test]
+    fn decode_resulttype_invalid() -> Result<()> {
+        //given
+        let bytes = vec![0x7Fu8, 0x8B, 0x6F];
+        //when
+        let x = ResultType::try_from(bytes);
+        //then
+        assert!(x.is_err());
         Ok(())
     }
 }
