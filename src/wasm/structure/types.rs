@@ -1,4 +1,5 @@
 /// https://webassembly.github.io/spec/core/syntax/types.html#number-types
+#[derive(PartialEq, Eq, Debug)]
 pub enum NumType {
     I32,
     I64,
@@ -6,20 +7,21 @@ pub enum NumType {
     F64,
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum RefType {
     FuncRef,
     ExternRef,
 }
-pub struct VecType();
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum ValType {
     Number(NumType),
     Ref(RefType),
-    Vec(VecType),
+    Vec,
 }
 
 /// https://webassembly.github.io/spec/core/syntax/types.html#result-types
-pub type ResultType = Vec<ValType>;
+pub struct ResultType(pub Vec<ValType>);
 
 /// https://webassembly.github.io/spec/core/syntax/types.html#function-types
-pub struct FuncType(ResultType, ResultType);
+pub struct FuncType(pub ResultType, pub ResultType);

@@ -39,7 +39,7 @@ fn decode_locals(bytes: Vec<u8>) -> Result<(Vec<ValType>, Vec<u8>)> {
     for _ in 0..num_of_locals {
         let num_of_valtypes = reader.read_u32()?;
         for _ in 0..num_of_valtypes {
-            locals.push(ValType::from_u8(reader.read_byte()?)?);
+            locals.push(ValType::try_from(reader.read_byte()?)?);
         }
     }
     let mut remainings = Vec::<u8>::new();
