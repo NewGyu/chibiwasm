@@ -1,5 +1,5 @@
 use crate::{
-    binary::decode::*,
+    binary::{decode::*, instructions::choose_inst_factory},
     structure::{
         instructions::{Expr, Instruction},
         types::ValType,
@@ -52,12 +52,11 @@ fn decode_expr(bytes: Vec<u8>) -> Result<Expr> {
     let mut expr = Vec::<Instruction>::new();
     while reader.has_next()? {
         let b = reader.read_byte()?;
-        let inst = match b {
-            0x00 => Instruction::Unreachable,
-            0x01 => Instruction::Nop,
-            _ => bail!("undefined ope code {}", b),
-        };
-        expr.push(inst);
+        let factory_method = choose_inst_factory(b)?;
+        let inst = factory_method(&mut reader)?;
+        if inst != Instruction::End {
+            expr.push(inst);
+        }
     }
     Ok(expr)
 }

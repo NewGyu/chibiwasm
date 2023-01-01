@@ -1,5 +1,6 @@
 // https://webassembly.github.io/spec/core/syntax/instructions.html
 pub type Expr = Vec<Instruction>;
+#[derive(PartialEq, Eq, Debug)]
 pub enum Instruction {
     Unreachable,
     Nop,
