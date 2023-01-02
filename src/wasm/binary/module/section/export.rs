@@ -29,3 +29,28 @@ pub fn decode(bytes: Vec<u8>) -> Result<Content> {
     }
     Ok(exports)
 }
+
+#[cfg(test)]
+mod tests {
+    use anyhow::*;
+
+    use crate::structure::module::{Export, ExportDesc};
+
+    #[test]
+    fn test_decode() -> Result<()> {
+        //given
+        let bytes = vec![0x01u8, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00];
+        //when
+        let x = super::decode(bytes)?;
+        //then
+        assert_eq!(x.len(), 1);
+        assert_eq!(
+            x[0],
+            Export {
+                name: "add".to_string(),
+                desc: ExportDesc::Func(0)
+            }
+        );
+        Ok(())
+    }
+}

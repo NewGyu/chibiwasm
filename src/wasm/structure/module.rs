@@ -26,11 +26,13 @@ pub type GlobalIdx = u32;
 
 pub type Name = String;
 
+#[derive(PartialEq, Eq, Debug)]
 pub struct Export {
     pub name: Name,
     pub desc: ExportDesc,
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum ExportDesc {
     Func(FuncIdx),
     Table(TableIdx),

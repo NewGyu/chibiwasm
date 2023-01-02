@@ -13,3 +13,20 @@ pub fn decode(bytes: Vec<u8>) -> Result<Content> {
     }
     Ok(func_indicies)
 }
+
+#[cfg(test)]
+mod tests {
+    use anyhow::*;
+
+    #[test]
+    fn test_decode() -> Result<()> {
+        //given
+        let bytes = vec![0x02u8, 0x00, 0x02];
+        //when
+        let x = super::decode(bytes)?;
+        //then
+        assert_eq!(x.len(), 2);
+        assert_eq!(x, vec![0x00u32, 0x02]);
+        Ok(())
+    }
+}
