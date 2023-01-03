@@ -3,6 +3,7 @@ use super::{
     types::{FuncType, ValType},
 };
 
+#[derive(PartialEq, Eq, Debug)]
 pub struct Module {
     pub version: u32,
     pub types: Vec<FuncType>,
@@ -10,6 +11,7 @@ pub struct Module {
     pub exports: Vec<Export>,
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub struct Func {
     pub type_: TypeIdx,
     pub locals: Vec<ValType>,

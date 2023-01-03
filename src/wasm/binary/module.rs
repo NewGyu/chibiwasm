@@ -45,14 +45,14 @@ impl TryFrom<(Version, Sections)> for Module {
         let module = Module {
             version,
             types: sections.type_section,
-            funcs: try_funcs(sections.function_section, sections.code_section)?,
+            funcs: try_merge_to_funcs(sections.function_section, sections.code_section)?,
             exports: sections.export_section,
         };
         Ok(module)
     }
 }
 
-fn try_funcs(
+fn try_merge_to_funcs(
     function_section: section::FunctionContent,
     code_section: section::CodeContent,
 ) -> Result<Vec<Func>> {
@@ -73,9 +73,9 @@ fn try_funcs(
 
 #[cfg(test)]
 mod tests {
+    use crate::binary::decode::test_util;
 
-    use super::ModuleHeaderRead;
-    use std::io::Cursor;
+    use anyhow::*;
 
     #[allow(dead_code)]
     fn init() {
@@ -84,12 +84,57 @@ mod tests {
 
     #[test]
     fn decode_header_test() {
+        use super::ModuleHeaderRead;
         //Given
-        let wat = br#"(module)"#;
-        let wasm = wasmer::wat2wasm(wat).unwrap();
-        let mut reader = Cursor::new(wasm);
+        let mut reader = test_util::wasm_reader(br#"(module)"#);
         //When & Then
         let version = reader.decode_header().unwrap();
         assert_eq!(version, 1);
+    }
+
+    #[test]
+    fn decode() -> Result<()> {
+        use crate::structure::{
+            instructions::Instruction,
+            module::{Export, Func},
+            types::{FuncType, NumType, ResultType, ValType},
+        };
+        //Given
+        let wat = br#"(module
+            (func $i32.add (param $lhs i32) (param $rhs i32) (result i32)
+                local.get $lhs
+                local.get $rhs
+                i32.add
+            )
+        )"#;
+        let mut reader = test_util::wasm_reader(wat);
+        //when
+        let module = super::decode(&mut reader)?;
+        //then
+        assert_eq!(module.exports, Vec::<Export>::new());
+        assert_eq!(
+            module.types,
+            vec![FuncType(
+                ResultType(vec![
+                    ValType::Number(NumType::I32),
+                    ValType::Number(NumType::I32)
+                ]),
+                ResultType(vec![ValType::Number(NumType::I32)])
+            )]
+        );
+        assert_eq!(
+            module.funcs,
+            vec![Func {
+                type_: 0,
+                locals: vec![],
+                body: vec![
+                    Instruction::LocalGet(0),
+                    Instruction::LocalGet(1),
+                    Instruction::I32Add
+                ]
+            }]
+        );
+
+        Ok(())
     }
 }
