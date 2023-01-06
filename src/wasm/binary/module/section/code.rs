@@ -24,15 +24,19 @@ pub fn decode(bytes: Vec<u8>) -> Result<Content> {
     while reader.has_next()? {
         let size = reader.read_u32()? as usize;
         let func_bytes = reader.read_bytes(size)?;
-        content.push(decode_func(func_bytes)?);
+        content.push(Func::try_from(func_bytes)?);
     }
     Ok(content)
 }
 
-fn decode_func(bytes: Vec<u8>) -> Result<Func> {
-    let (locals, remainings) = decode_locals(bytes)?;
-    let expr = decode_expr(remainings)?;
-    Ok(Func { locals, expr })
+impl TryFrom<Vec<u8>> for Func {
+    type Error = anyhow::Error;
+
+    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+        let (locals, remainings) = decode_locals(bytes)?;
+        let expr = decode_expr(remainings)?;
+        Ok(Func { locals, expr })
+    }
 }
 
 fn decode_locals(bytes: Vec<u8>) -> Result<(Vec<ValType>, Vec<u8>)> {
@@ -77,7 +81,7 @@ mod tests {
     #[test]
     fn decode_func() {
         let bytes = vec![0x00u8, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b];
-        let f = super::decode_func(bytes).unwrap();
+        let f = super::Func::try_from(bytes).unwrap();
         assert_eq!(
             f,
             Func {
