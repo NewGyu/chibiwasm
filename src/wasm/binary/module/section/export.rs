@@ -1,14 +1,14 @@
 use anyhow::*;
 
 use crate::{
-    binary::decode::ReadableBytes,
+    binary::decode::WasmModuleBinaryRead,
     structure::module::{Export, ExportDesc},
 };
 
 pub type Content = Vec<Export>;
 
 pub fn decode(bytes: Vec<u8>) -> Result<Content> {
-    let mut reader = bytes.to_wasm_read();
+    let mut reader = &bytes[..];
     let num_of_export = reader.read_u32()? as usize;
     let mut exports = Vec::<Export>::with_capacity(num_of_export);
     for _ in 0..num_of_export {

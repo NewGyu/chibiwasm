@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::io::{BufRead, Cursor, Read};
+use std::io::{BufRead, Read};
 
 /// Extensions for Read to help to parse wasm binary
 pub trait WasmModuleBinaryRead: Read + BufRead {
@@ -39,18 +39,14 @@ pub trait WasmModuleBinaryRead: Read + BufRead {
     fn read_i32(&mut self) -> Result<i32> {
         self.read_i64().map(|x| x as i32)
     }
-}
-impl<R: Read + BufRead> WasmModuleBinaryRead for R {}
 
-pub trait ReadableBytes {
-    fn to_wasm_read(self) -> Box<dyn WasmModuleBinaryRead>;
-}
-
-impl ReadableBytes for Vec<u8> {
-    fn to_wasm_read(self) -> Box<dyn WasmModuleBinaryRead> {
-        Box::new(Cursor::new(self))
+    fn read_the_rest(&mut self) -> Result<Vec<u8>> {
+        let mut buff = Vec::<u8>::new();
+        let _ = self.read_to_end(&mut buff)?;
+        Ok(buff)
     }
 }
+impl<R: Read + BufRead> WasmModuleBinaryRead for R {}
 
 #[cfg(test)]
 pub mod test_util {
@@ -74,13 +70,13 @@ pub mod test_util {
 mod tests {
     use std::io::Cursor;
 
-    use super::{ReadableBytes, WasmModuleBinaryRead};
+    use super::WasmModuleBinaryRead;
 
     #[test]
     fn test_read() {
         //Given
         let test_bytes = b"\0asm".to_vec();
-        let mut read = test_bytes.to_wasm_read();
+        let mut read = &test_bytes[..];
         //When Then
         let b = read.read_byte().unwrap();
         assert_eq!(b, 0x00);
@@ -147,5 +143,18 @@ mod tests {
         let x = cur.read_i32().unwrap();
         //Then
         assert_eq!(x, -512);
+    }
+
+    #[test]
+    fn read_the_rest() {
+        //Given
+        let bytes = vec![0x01u8, 0x02, 0x03, 0x04, 0x05];
+        let mut reader = &bytes[..];
+        //When
+        let first_read = reader.read_bytes(2).unwrap();
+        let the_rest = reader.read_the_rest().unwrap();
+        //Then
+        assert_eq!(first_read, vec![0x01, 0x02]);
+        assert_eq!(the_rest, vec![0x03, 0x04, 0x05]);
     }
 }

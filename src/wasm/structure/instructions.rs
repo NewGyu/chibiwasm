@@ -4,6 +4,7 @@ pub type Expr = Vec<Instruction>;
 pub enum Instruction {
     Unreachable,
     Nop,
+    If((BlockType, Vec<Instruction>, Vec<Instruction>)),
     LocalGet(u32),
     Call(u32),
     I32Sub,
@@ -39,8 +40,14 @@ pub enum Instruction {
     I32Extend8S,
     I32Extend16S,
     Return,
-    If,
     Else,
     End,
     Void,
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub enum BlockType {
+    Empty,
+    TypeIdx(super::module::TypeIdx),
+    ValType(super::types::ValType),
 }
