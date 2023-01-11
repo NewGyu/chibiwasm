@@ -1,3 +1,5 @@
+use std::io::Cursor;
+
 use crate::structure::{
     instructions::{
         BlockType,
@@ -8,6 +10,26 @@ use crate::structure::{
 use anyhow::*;
 
 use super::decode::WasmModuleBinaryRead;
+
+pub struct Instructions(Vec<Instruction>);
+impl TryFrom<Vec<u8>> for Instructions {
+    type Error = anyhow::Error;
+
+    fn try_from(bytes: Vec<u8>) -> Result<Self> {
+        let mut r: Box<dyn WasmModuleBinaryRead> = Box::new(Cursor::new(bytes));
+        let mut insts = Instructions(Vec::<Instruction>::new());
+        while r.has_next()? {
+            let b = r.read_byte()?;
+            let factory_method = choose_inst_factory(b)?;
+            let inst = factory_method(&mut r)?;
+            if inst == Instruction::End {
+                break;
+            }
+            insts.0.push(inst);
+        }
+        Ok(insts)
+    }
+}
 
 type FactoryMethod = fn(reader: &mut Box<dyn WasmModuleBinaryRead>) -> Result<Instruction>;
 
@@ -66,6 +88,14 @@ mod block {
         fn try_from(reader: &mut Box<dyn WasmModuleBinaryRead>) -> Result<Self> {
             let (first, second) = reader.read_and_split_else()?;
             let block_type = BlockType::try_from(&first[..])?;
+            let first = (&first[block_type.len()..]).to_vec();
+            let first = super::Instructions::try_from(first)?;
+            let second = second.map(|b| super::Instructions::try_from(b)?);
+            /*
+            first.iter().map(|b| {
+
+            })
+            */
             todo!()
         }
     }
@@ -108,7 +138,17 @@ mod block {
         }
     }
 
-    fn num_of_leb128_bytes(mut n: u32) -> u32 {
+    impl BlockType {
+        pub fn len(&self) -> usize {
+            match self {
+                BlockType::Empty => 1,
+                BlockType::ValType(_) => 1,
+                BlockType::TypeIdx(n) => num_of_leb128_bytes(*n),
+            }
+        }
+    }
+
+    fn num_of_leb128_bytes(mut n: u32) -> usize {
         if n == 0 {
             1
         } else {
@@ -175,6 +215,12 @@ mod block {
             assert_eq!(num_of_leb128_bytes(128), 2);
             assert_eq!(num_of_leb128_bytes(512), 2);
             assert_eq!(num_of_leb128_bytes(16384), 3);
+        }
+
+        #[test]
+        fn test() {
+            let v = vec![1, 2, 3, 4];
+            assert_eq!(&v[2..], &[2, 3, 4]);
         }
     }
 }
