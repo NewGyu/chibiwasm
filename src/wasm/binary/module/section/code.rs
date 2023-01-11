@@ -1,11 +1,8 @@
 use std::io::Read;
 
 use crate::{
-    binary::{decode::*, instructions::choose_inst_factory},
-    structure::{
-        instructions::{Expr, Instruction},
-        types::ValType,
-    },
+    binary::{decode::*, instructions::InstructionArrayWrapper},
+    structure::{instructions::Expr, types::ValType},
 };
 use anyhow::*;
 
@@ -34,7 +31,7 @@ impl TryFrom<Vec<u8>> for Func {
 
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
         let (locals, remainings) = decode_locals(bytes)?;
-        let expr = decode_expr(remainings)?;
+        let InstructionArrayWrapper(expr) = InstructionArrayWrapper::try_from(remainings)?;
         Ok(Func { locals, expr })
     }
 }
@@ -52,25 +49,6 @@ fn decode_locals(bytes: Vec<u8>) -> Result<(Vec<ValType>, Vec<u8>)> {
     let mut remainings = Vec::<u8>::new();
     let _ = reader.read_to_end(&mut remainings);
     Ok((locals, remainings))
-}
-
-fn decode_expr(bytes: Vec<u8>) -> Result<Expr> {
-    let mut reader = to_wasmread(bytes);
-    let mut expr = Vec::<Instruction>::new();
-    while reader.has_next()? {
-        let b = reader.read_byte()?;
-        let factory_method = choose_inst_factory(b)?;
-        let inst = factory_method(&mut reader)?;
-        if inst != Instruction::End {
-            expr.push(inst);
-        }
-    }
-    Ok(expr)
-}
-
-//ベタにWamsModuleBinaryReadにキャストする方法がわからない・・・
-fn to_wasmread(bytes: Vec<u8>) -> Box<dyn WasmModuleBinaryRead> {
-    Box::new(std::io::Cursor::new(bytes))
 }
 
 #[cfg(test)]
