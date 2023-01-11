@@ -44,18 +44,137 @@ pub fn choose_inst_factory(b: u8) -> Result<FactoryMethod> {
     })
 }
 
-impl TryFrom<&mut Box<dyn WasmModuleBinaryRead>> for BlockType {
-    type Error = anyhow::Error;
+mod block {
+    use crate::{
+        binary::decode::WasmModuleBinaryRead,
+        structure::{
+            instructions::{BlockType, Instruction},
+            types::ValType,
+        },
+    };
+    use anyhow::*;
 
-    fn try_from(reader: &mut Box<dyn WasmModuleBinaryRead>) -> Result<Self, Self::Error> {
-        let b = reader.read_byte()?;
-        if b == 0x40 {
-            Ok(BlockType::Empty)
-        } else if let Result::Ok(v) = ValType::try_from(b) {
-            Ok(BlockType::ValType(v))
+    struct Block {
+        block_type: BlockType,
+        first: Vec<Instruction>,
+        second: Option<Vec<Instruction>>,
+    }
+
+    impl TryFrom<&mut Box<dyn WasmModuleBinaryRead>> for Block {
+        type Error = anyhow::Error;
+
+        fn try_from(reader: &mut Box<dyn WasmModuleBinaryRead>) -> Result<Self> {
+            let (first, second) = reader.read_and_split_else()?;
+            let block_type = BlockType::try_from(&first[..])?;
+            todo!()
+        }
+    }
+
+    trait BlockInstRead: WasmModuleBinaryRead {
+        /// read "^(...)0x0B"
+        fn read_until_end_marker(&mut self) -> Result<Vec<u8>> {
+            let mut buf = Vec::<u8>::new();
+            let _ = self.read_until(0x0B, &mut buf)?;
+            let _ = buf.remove(buf.len() - 1);
+            Ok(buf)
+        }
+
+        /// read "^(...)0x05(...)0x0B"
+        fn read_and_split_else(&mut self) -> Result<(Vec<u8>, Option<Vec<u8>>)> {
+            let bytes = self.read_until_end_marker()?;
+            let mut iter = bytes.split(|b| b == &0x05);
+            Ok((
+                iter.next()
+                    .context("First block must not be empty.")?
+                    .to_vec(),
+                iter.next().map(|val| val.to_vec()),
+            ))
+        }
+    }
+    impl<R: WasmModuleBinaryRead> BlockInstRead for R {}
+
+    impl TryFrom<&[u8]> for BlockType {
+        type Error = anyhow::Error;
+
+        fn try_from(mut bytes: &[u8]) -> Result<Self> {
+            let b = bytes[0];
+            if b == 0x40 {
+                Ok(BlockType::Empty)
+            } else if let Result::Ok(v) = ValType::try_from(b) {
+                Ok(BlockType::ValType(v))
+            } else {
+                Ok(BlockType::TypeIdx(bytes.read_u32()?))
+            }
+        }
+    }
+
+    fn num_of_leb128_bytes(mut n: u32) -> u32 {
+        if n == 0 {
+            1
         } else {
-            //ここ実装難しくね？ 1byte戻してからsigned leb128としてreadする必要があるけど、1byte戻る方法がわからない
-            todo!("The case of typeidx is unimplemented")
+            let mut i = 0;
+            while n > 0 {
+                n /= 128; //means 2^7
+                i += 1;
+            }
+            i
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use crate::structure::{
+            instructions::BlockType,
+            types::{NumType, ValType},
+        };
+
+        use super::{num_of_leb128_bytes, BlockInstRead};
+
+        #[test]
+        fn block_type_try_from() {
+            let bytes = vec![0x40u8, 0x01, 0x02];
+            assert_eq!(BlockType::try_from(&bytes[..]).unwrap(), BlockType::Empty);
+
+            let bytes = vec![0x7Du8, 0x01, 0x02];
+            assert_eq!(
+                BlockType::try_from(&bytes[..]).unwrap(),
+                BlockType::ValType(ValType::Number(NumType::F32))
+            );
+
+            let bytes = vec![0xA1_u8, 0x86, 0x15];
+            assert_eq!(
+                BlockType::try_from(&bytes[..]).unwrap(),
+                BlockType::TypeIdx(344865)
+            );
+        }
+
+        #[test]
+        fn block_inst_read() {
+            //Given
+            let bytes = vec![0xA1_u8, 0x86, 0x15, 0x05, 0x01, 0x02, 0x0b];
+            //When
+            let (first, second) = (&bytes[..]).read_and_split_else().unwrap();
+            //Then
+            assert_eq!(first, vec![0xA1, 0x86, 0x15]);
+            assert_eq!(second, Some(vec![0x01, 0x02]));
+
+            //Given
+            let bytes = vec![0xA1_u8, 0x86, 0x15, 0x0b];
+            //When
+            let (first, second) = (&bytes[..]).read_and_split_else().unwrap();
+            //Then
+            assert_eq!(first, vec![0xA1, 0x86, 0x15]);
+            assert_eq!(second, None);
+        }
+
+        #[test]
+        fn calc_num_of_leb128_byte() {
+            assert_eq!(num_of_leb128_bytes(0), 1);
+            assert_eq!(num_of_leb128_bytes(1), 1);
+            assert_eq!(num_of_leb128_bytes(127), 1);
+            assert_eq!(num_of_leb128_bytes(128), 2);
+            assert_eq!(num_of_leb128_bytes(512), 2);
+            assert_eq!(num_of_leb128_bytes(16384), 3);
         }
     }
 }
