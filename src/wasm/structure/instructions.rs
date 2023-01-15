@@ -2,11 +2,19 @@
 pub type Expr = Vec<Instruction>;
 #[derive(PartialEq, Eq, Debug)]
 pub enum Instruction {
+    // [Control Instructions](https://webassembly.github.io/spec/core/binary/instructions.html#control-instructions)
     Unreachable,
     Nop,
-    If((BlockType, Vec<Instruction>, Vec<Instruction>)),
-    LocalGet(u32),
+    Block(BlockType, Vec<Instruction>),
+    Loop(BlockType, Vec<Instruction>),
+    If(BlockType, Vec<Instruction>, Option<Vec<Instruction>>),
+    Br(u32),
+    BrIf(u32),
+    Return,
     Call(u32),
+    LocalGet(u32),
+    Else,
+    End,
     I32Sub,
     I32Add,
     I32Mul,
@@ -39,9 +47,6 @@ pub enum Instruction {
     I32RtoR,
     I32Extend8S,
     I32Extend16S,
-    Return,
-    Else,
-    End,
     Void,
 }
 

@@ -1,29 +1,6 @@
-use std::io::Cursor;
-
+use super::decode::WasmModuleBinaryRead;
 use crate::structure::instructions::Instruction::{self, *};
 use anyhow::*;
-
-use super::decode::WasmModuleBinaryRead;
-
-pub struct InstructionArrayWrapper(pub Vec<Instruction>);
-impl TryFrom<Vec<u8>> for InstructionArrayWrapper {
-    type Error = anyhow::Error;
-
-    fn try_from(bytes: Vec<u8>) -> Result<Self> {
-        let mut r: Box<dyn WasmModuleBinaryRead> = Box::new(Cursor::new(bytes));
-        let mut inst_array = Vec::<Instruction>::new();
-        while r.has_next()? {
-            let b = r.read_byte()?;
-            let factory_method = choose_inst_factory(b)?;
-            let inst = factory_method(&mut r)?;
-            if inst == Instruction::End {
-                break;
-            }
-            inst_array.push(inst);
-        }
-        Ok(Self(inst_array))
-    }
-}
 
 type FactoryMethod = fn(reader: &mut Box<dyn WasmModuleBinaryRead>) -> Result<Instruction>;
 
@@ -32,18 +9,17 @@ fn choose_inst_factory(b: u8) -> Result<FactoryMethod> {
         //Control Instructions
         0x00 => |_| Ok(Unreachable),
         0x01 => |_| Ok(Nop),
+        0x02 => |r| {
+            let block = block::Block::try_from(r)?;
+            Ok(Block(block.block_type, block.first))
+        },
+        0x03 => |r| {
+            let block = block::Block::try_from(r)?;
+            Ok(Loop(block.block_type, block.first))
+        },
         0x04 => |r| {
-            /*
-            let mut buf:Vec<u8> = vec![];
-            r.read_until(0x0B, &mut buf);
-
-            let x = &buf[..];
-            x.re
-            let blockType = BlockType::try_from(r)?;
-            while
-            If((blockType, ))
-            */
-            todo!()
+            let block = block::Block::try_from(r)?;
+            Ok(If(block.block_type, block.first, block.second))
         },
         0x0F => |_| Ok(Return),
         0x10 => |r| Ok(Call(r.read_u32()?)),
@@ -54,35 +30,53 @@ fn choose_inst_factory(b: u8) -> Result<FactoryMethod> {
         0x6C => |_| Ok(I32Mul),
         0x6D => |_| Ok(I32DivS),
         0x6F => |_| Ok(I32DivU),
+        0x71 => |_| Ok(I32And),
+        0x72 => |_| Ok(I32Or),
         0x41 => |r| Ok(I32Const(r.read_i32()?)),
         0x0B => |_| Ok(End),
         _ => bail!("{:#X} is undefined instruction.", b),
     })
 }
 
+pub fn decode_instructions(bytes: Vec<u8>) -> Result<Vec<Instruction>> {
+    block::InstructionArrayWrapper::try_from(bytes).map(|x| x.0)
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::structure::instructions::Instruction;
+    use crate::structure::instructions::{BlockType, Instruction};
 
     #[test]
-    fn instructions_try_from() {
-        let bytes = vec![0x20u8, 0x44, 0x20, 0x33, 0x6A];
-        let super::InstructionArrayWrapper(insts) =
-            super::InstructionArrayWrapper::try_from(bytes).unwrap();
-
+    fn decode_instructions() {
         assert_eq!(
-            insts,
+            super::decode_instructions(vec![0x20u8, 0x44, 0x20, 0x33, 0x6A]).unwrap(),
             vec![
                 Instruction::LocalGet(68),
                 Instruction::LocalGet(51),
                 Instruction::I32Add
             ]
         );
+
+        assert_eq!(
+            super::decode_instructions(vec![
+                0x6Au8, 0x04, 0xA1, 0x86, 0x15, 0x6B, 0x6C, 0x05, 0x71, 0x72, 0x0B
+            ])
+            .unwrap(),
+            vec![
+                Instruction::I32Add,
+                Instruction::If(
+                    BlockType::TypeIdx(344865),
+                    vec![Instruction::I32Sub, Instruction::I32Mul],
+                    Some(vec![Instruction::I32And, Instruction::I32Or])
+                )
+            ]
+        );
     }
 }
 
 mod block {
-    use super::InstructionArrayWrapper;
+    use std::io::Cursor;
+
     use crate::{
         binary::decode::WasmModuleBinaryRead,
         structure::{
@@ -92,12 +86,13 @@ mod block {
     };
     use anyhow::*;
 
+    /// Block structure for Control instructions
+    /// https://webassembly.github.io/spec/core/binary/instructions.html#control-instructions
     pub struct Block {
         pub block_type: BlockType,
         pub first: Vec<Instruction>,
         pub second: Option<Vec<Instruction>>,
     }
-
     impl TryFrom<&mut Box<dyn WasmModuleBinaryRead>> for Block {
         type Error = anyhow::Error;
 
@@ -107,16 +102,34 @@ mod block {
             let first_bytes = first_bytes[block_type.bytes_len()..].to_vec();
             Ok(Self {
                 block_type,
-                first: InstructionArrayWrapper::try_from(first_bytes)?.0,
-                second: if let Some(bytes) = second_bytes {
-                    Some(InstructionArrayWrapper::try_from(bytes)?.0)
-                } else {
-                    None
-                },
+                first: super::decode_instructions(first_bytes)?,
+                second: second_bytes.map(super::decode_instructions).transpose()?,
             })
         }
     }
 
+    /// NewType to Vec<Instruction> try_from
+    pub struct InstructionArrayWrapper(pub Vec<Instruction>);
+    impl TryFrom<Vec<u8>> for InstructionArrayWrapper {
+        type Error = anyhow::Error;
+
+        fn try_from(bytes: Vec<u8>) -> Result<Self> {
+            let mut r: Box<dyn WasmModuleBinaryRead> = Box::new(Cursor::new(bytes));
+            let mut inst_array = Vec::<Instruction>::new();
+            while r.has_next()? {
+                let b = r.read_byte()?;
+                let factory_method = super::choose_inst_factory(b)?;
+                let inst = factory_method(&mut r)?;
+                if inst == Instruction::End {
+                    break;
+                }
+                inst_array.push(inst);
+            }
+            Ok(Self(inst_array))
+        }
+    }
+
+    /// Extensions methods to decode Block parts
     trait BlockInstRead: WasmModuleBinaryRead {
         /// read "^(...)0x0B"
         fn read_until_end_marker(&mut self) -> Result<Vec<u8>> {
@@ -181,7 +194,7 @@ mod block {
     #[cfg(test)]
     mod tests {
         use crate::structure::{
-            instructions::BlockType,
+            instructions::{BlockType, Instruction},
             types::{NumType, ValType},
         };
 
@@ -202,6 +215,22 @@ mod block {
             assert_eq!(
                 BlockType::try_from(&bytes[..]).unwrap(),
                 BlockType::TypeIdx(344865)
+            );
+        }
+
+        #[test]
+        fn instructions_try_from() {
+            let bytes = vec![0x20u8, 0x44, 0x20, 0x33, 0x6A];
+            let super::InstructionArrayWrapper(insts) =
+                super::InstructionArrayWrapper::try_from(bytes).unwrap();
+
+            assert_eq!(
+                insts,
+                vec![
+                    Instruction::LocalGet(68),
+                    Instruction::LocalGet(51),
+                    Instruction::I32Add
+                ]
             );
         }
 

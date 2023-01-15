@@ -1,7 +1,7 @@
 use std::io::Read;
 
 use crate::{
-    binary::{decode::*, instructions::InstructionArrayWrapper},
+    binary::{decode::*, instructions::decode_instructions},
     structure::{instructions::Expr, types::ValType},
 };
 use anyhow::*;
@@ -31,7 +31,7 @@ impl TryFrom<Vec<u8>> for Func {
 
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
         let (locals, remainings) = decode_locals(bytes)?;
-        let InstructionArrayWrapper(expr) = InstructionArrayWrapper::try_from(remainings)?;
+        let expr = decode_instructions(remainings)?;
         Ok(Func { locals, expr })
     }
 }
