@@ -1,3 +1,5 @@
+use super::module::indices::*;
+
 // https://webassembly.github.io/spec/core/syntax/instructions.html
 pub type Expr = Vec<Instruction>;
 #[derive(PartialEq, Eq, Debug)]
@@ -8,13 +10,16 @@ pub enum Instruction {
     Block(BlockType, Vec<Instruction>),
     Loop(BlockType, Vec<Instruction>),
     If(BlockType, Vec<Instruction>, Option<Vec<Instruction>>),
-    Br(u32),
-    BrIf(u32),
+    Br(LabelIdx),
+    BrIf(LabelIdx),
+    BrTable(Vec<LabelIdx>, LabelIdx),
     Return,
-    Call(u32),
+    Call(FuncIdx),
+    CallIndirect(TableIdx, TypeIdx),
     LocalGet(u32),
     Else,
     End,
+    //[Reference Instructions](https://webassembly.github.io/spec/core/binary/instructions.html#reference-instructions)
     I32Sub,
     I32Add,
     I32Mul,
@@ -53,6 +58,6 @@ pub enum Instruction {
 #[derive(PartialEq, Eq, Debug)]
 pub enum BlockType {
     Empty,
-    TypeIdx(super::module::TypeIdx),
+    TypeIdx(TypeIdx),
     ValType(super::types::ValType),
 }

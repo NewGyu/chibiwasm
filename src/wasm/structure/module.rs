@@ -3,6 +3,7 @@ use super::{
     types::{FuncType, ValType},
 };
 
+/// https://webassembly.github.io/spec/core/syntax/modules.html#syntax-module
 #[derive(PartialEq, Eq, Debug)]
 pub struct Module {
     pub version: u32,
@@ -11,20 +12,26 @@ pub struct Module {
     pub exports: Vec<Export>,
 }
 
+/// https://webassembly.github.io/spec/core/syntax/modules.html#indices
+pub mod indices {
+    pub type TypeIdx = u32;
+    pub type FuncIdx = u32;
+    pub type TableIdx = u32;
+    pub type MemIdx = u32;
+    pub type GlobalIdx = u32;
+    pub type LocalIdx = u32;
+    pub type ElemIdx = u32;
+    pub type DataIdx = u32;
+    pub type LabelIdx = u32;
+}
+
+/// https://webassembly.github.io/spec/core/syntax/modules.html#functions
 #[derive(PartialEq, Eq, Debug)]
 pub struct Func {
-    pub type_: TypeIdx,
+    pub type_: indices::TypeIdx,
     pub locals: Vec<ValType>,
     pub body: Expr,
 }
-
-/// Indicies
-/// https://webassembly.github.io/spec/core/syntax/modules.html#indices
-pub type TypeIdx = u32;
-pub type FuncIdx = u32;
-pub type TableIdx = u32;
-pub type MemIdx = u32;
-pub type GlobalIdx = u32;
 
 pub type Name = String;
 
@@ -36,8 +43,8 @@ pub struct Export {
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum ExportDesc {
-    Func(FuncIdx),
-    Table(TableIdx),
-    Mem(MemIdx),
-    Global(GlobalIdx),
+    Func(indices::FuncIdx),
+    Table(indices::TableIdx),
+    Mem(indices::MemIdx),
+    Global(indices::GlobalIdx),
 }

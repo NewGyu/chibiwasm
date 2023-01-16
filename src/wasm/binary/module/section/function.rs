@@ -1,8 +1,7 @@
 use anyhow::*;
 
-use crate::binary::decode::WasmModuleBinaryRead;
+use crate::{binary::decode::WasmModuleBinaryRead, structure::module::indices::TypeIdx};
 
-pub type TypeIdx = u32;
 pub type Content = Vec<TypeIdx>;
 pub fn decode(bytes: Vec<u8>) -> Result<Content> {
     let mut reader = &bytes[..];
