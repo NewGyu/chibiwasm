@@ -1,4 +1,7 @@
-use super::module::indices::*;
+use super::{
+    module::indices::*,
+    types::{RefType, ValType},
+};
 
 // https://webassembly.github.io/spec/core/syntax/instructions.html
 pub type Expr = Vec<Instruction>;
@@ -16,10 +19,36 @@ pub enum Instruction {
     Return,
     Call(FuncIdx),
     CallIndirect(TableIdx, TypeIdx),
-    LocalGet(u32),
     Else,
     End,
     //[Reference Instructions](https://webassembly.github.io/spec/core/binary/instructions.html#reference-instructions)
+    RefNull(RefType),
+    RefIsNull,
+    RefFunc(FuncIdx),
+    //Parametric Instructions
+    Drop,
+    Select(Option<Vec<ValType>>),
+    //Variable Instructions
+    LocalGet(LocalIdx),
+    LocalSet(LocalIdx),
+    LocalTee(LocalIdx),
+    GlobalGet(GlobalIdx),
+    GlobalSet(GlobalIdx),
+    //Table Instructions
+    TableGet(TableIdx),
+    TableSet(TableIdx),
+    TableInit(ElemIdx, TableIdx),
+    TableDrop(ElemIdx),
+    TableCopy(TableIdx, TableIdx),
+    TableGrow(TableIdx),
+    TableSize(TableIdx),
+    TableFill(TableIdx),
+    //Memory Instructions
+    //Numeric Instructions
+    I32Const(i32),
+    I64Const(i64),
+    //F32Const(f32),
+    //F64Const(f64),
     I32Sub,
     I32Add,
     I32Mul,
@@ -38,7 +67,6 @@ pub enum Instruction {
     I32LeU,
     I32GeU,
     I32GeS,
-    I32Const(i32),
     I32Popcnt,
     I32RemS,
     I32RemU,

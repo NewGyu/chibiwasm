@@ -1,9 +1,15 @@
 use super::decode::WasmModuleBinaryRead;
-use crate::structure::instructions::Instruction::{self, *};
+use crate::structure::{
+    instructions::Instruction::{self, *},
+    types::ValType,
+};
 use anyhow::*;
 
-type FactoryMethod = fn(reader: &mut Box<dyn WasmModuleBinaryRead>) -> Result<Instruction>;
+pub fn decode_instructions(bytes: Vec<u8>) -> Result<Vec<Instruction>> {
+    block::InstructionArrayWrapper::try_from(bytes).map(|x| x.0)
+}
 
+type FactoryMethod = fn(reader: &mut Box<dyn WasmModuleBinaryRead>) -> Result<Instruction>;
 fn choose_inst_factory(b: u8) -> Result<FactoryMethod> {
     Ok(match b {
         //Control Instructions
@@ -21,10 +27,48 @@ fn choose_inst_factory(b: u8) -> Result<FactoryMethod> {
             let block = block::Block::try_from(r)?;
             Ok(If(block.block_type, block.first, block.second))
         },
+        0x0C => |r| Ok(Br(r.read_u32()?)),
+        0x0D => |r| Ok(BrIf(r.read_u32()?)),
+        0x0E => |r| {
+            let len = r.read_u32()?;
+            let mut label_indices = Vec::<u32>::new();
+            for _ in 0..len {
+                label_indices.push(r.read_u32()?);
+            }
+            Ok(BrTable(label_indices, r.read_u32()?))
+        },
         0x0F => |_| Ok(Return),
         0x10 => |r| Ok(Call(r.read_u32()?)),
-
+        0x11 => |r| Ok(CallIndirect(r.read_u32()?, r.read_u32()?)),
+        //[Reference Instructions]
+        0xD0 => |r| {
+            if let ValType::Ref(r) = ValType::try_from(r.read_byte()?)? {
+                Ok(RefNull(r))
+            } else {
+                bail!("the byte is not RefType.")
+            }
+        },
+        0xD1 => |_| Ok(RefIsNull),
+        0xD2 => |r| Ok(RefFunc(r.read_u32()?)),
+        //Parametric Instructions
+        0x1A => |_| Ok(Drop),
+        0x1B => |_| Ok(Select(None)),
+        0x1C => |r| {
+            let len = r.read_u32()?;
+            let mut valtypes = Vec::<ValType>::new();
+            for _ in 0..len {
+                valtypes.push(ValType::try_from(r.read_byte()?)?);
+            }
+            Ok(Select(Some(valtypes)))
+        },
+        //Variable Instructions
         0x20 => |r| Ok(LocalGet(r.read_u32()?)),
+        0x21 => |r| Ok(LocalSet(r.read_u32()?)),
+        0x22 => |r| Ok(LocalTee(r.read_u32()?)),
+        0x23 => |r| Ok(GlobalGet(r.read_u32()?)),
+        0x24 => |r| Ok(GlobalSet(r.read_u32()?)),
+        //Numeric Instructions
+        0x41 => |r| Ok(I32Const(r.read_i32()?)),
         0x6A => |_| Ok(I32Add),
         0x6B => |_| Ok(I32Sub),
         0x6C => |_| Ok(I32Mul),
@@ -32,14 +76,9 @@ fn choose_inst_factory(b: u8) -> Result<FactoryMethod> {
         0x6F => |_| Ok(I32DivU),
         0x71 => |_| Ok(I32And),
         0x72 => |_| Ok(I32Or),
-        0x41 => |r| Ok(I32Const(r.read_i32()?)),
         0x0B => |_| Ok(End),
         _ => bail!("{:#X} is undefined instruction.", b),
     })
-}
-
-pub fn decode_instructions(bytes: Vec<u8>) -> Result<Vec<Instruction>> {
-    block::InstructionArrayWrapper::try_from(bytes).map(|x| x.0)
 }
 
 #[cfg(test)]
@@ -70,6 +109,11 @@ mod tests {
                     Some(vec![Instruction::I32And, Instruction::I32Or])
                 )
             ]
+        );
+
+        assert_eq!(
+            super::decode_instructions(vec![0x0Eu8, 0x03, 0x01, 0x02, 0x03, 0x0F]).unwrap(),
+            vec![Instruction::BrTable(vec![0x01, 0x02, 0x03], 0x0F)]
         );
     }
 }
